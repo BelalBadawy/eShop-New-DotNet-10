@@ -1,0 +1,12 @@
+﻿global using eShop.Application.Models;
+global using eStoreCA.API.Infrastructure;
+global using Mapster;
+global using MediatR;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.Data;
+global using System.Reflection;
+global using System.Text.Json;
+global using eShop.Infrastructure.Identity.Attributes;
+global using eShop.Infrastructure.Identity.Constants;

@@ -1,0 +1,67 @@
+using eShop.API;
+using eShop.API.Helpers;
+using eShop.Application;
+using eShop.Infrastructure;
+using Newtonsoft.Json;
+using Scalar.AspNetCore;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+// Add OpenAPI
+builder.Services.AddOpenApi("v1", options =>
+{
+    options.AddDocumentTransformer((document, context, ct) =>
+        new BearerSchemeTransformer().TransformAsync(document, context, ct)
+    );
+});
+
+// Add services
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(opt =>
+        opt.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore);
+
+builder.Services.AddCorsAllowAll();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+
+builder.Services.AddApiVersioningConfig();
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    
+    app.MapOpenApi();
+
+    // app.MapScalarApiReference(); 
+
+    //  Map **Scalar API Reference**, securing it with JWT
+    app.MapScalarApiReference(options =>
+    {
+        options.AddPreferredSecuritySchemes("Bearer");
+    });
+    //.RequireAuthorization();  // <- Require JWT to view the Scalar UI
+}
+
+
+app.UseHttpsRedirection();
+
+// Routing first
+app.UseRouting();
+
+// CORS before authentication
+app.UseCorsAllowAll();
+
+app.UseInfrastructureAsync().GetAwaiter().GetResult();
+
+app.MapControllers();
+
+app.Run();
