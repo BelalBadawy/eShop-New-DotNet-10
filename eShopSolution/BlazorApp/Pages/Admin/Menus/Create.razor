@@ -1,0 +1,118 @@
+﻿@page "/admin/menus/create"
+@using System.ComponentModel.DataAnnotations
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<h3>Create Menu</h3>
+<hr />
+
+<EditForm Model="Menu" OnValidSubmit="AddMenu">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- Title -->
+    <div class="mb-3">
+        <label class="form-label">Menu Title:</label>
+        <InputText class="form-control" @bind-Value="Menu.MenuTitle" />
+        <ValidationMessage For="() => Menu.MenuTitle" />
+    </div>
+
+    <!-- Link -->
+    <div class="mb-3">
+        <label class="form-label">Link:</label>
+        <InputText class="form-control" @bind-Value="Menu.Link" />
+        <ValidationMessage For="() => Menu.Link" />
+    </div>
+
+    <!-- Type -->
+    <div class="mb-3">
+        <label class="form-label">Type:</label>
+
+        <InputSelect class="form-control" @bind-Value="Menu.Type"
+                     @onchange="OnTypeChanged">
+            <option value="">-- Select Type --</option>
+            <option value="Top">Top</option>
+            <option value="Bottom">Bottom</option>
+        </InputSelect>
+
+        <ValidationMessage For="() => Menu.Type" />
+    </div>
+
+    <!-- ParentId -->
+    <div class="mb-3">
+        <label class="form-label">Parent Menu:</label>
+
+        <InputSelect class="form-control" @bind-Value="Menu.ParentId">
+            <option value="">-- No Parent --</option>
+            @foreach (var p in ParentMenus)
+            {
+                <option value="@p.Id">@p.MenuTitle</option>
+            }
+        </InputSelect>
+
+        <ValidationMessage For="() => Menu.ParentId" />
+    </div>
+
+    <!-- Order -->
+    <div class="mb-3">
+        <label class="form-label">Order:</label>
+        <InputNumber class="form-control" @bind-Value="Menu.Order" />
+        <ValidationMessage For="() => Menu.Order" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+</EditForm>
+
+@code {
+    private MenuDto Menu { get; set; } = new() { Type = "Top" };
+
+    private List<MenuLookupDto> ParentMenus = new();
+
+    private async Task OnTypeChanged(ChangeEventArgs e)
+    {
+        string selectedType = e.Value?.ToString() ?? "";
+
+        Menu.Type = selectedType;
+
+        // clear old items
+        ParentMenus.Clear();
+        Menu.ParentId = null;
+
+        if (!string.IsNullOrWhiteSpace(selectedType))
+        {
+            // load filtered list from API
+            ParentMenus = await Http.GetFromJsonAsync<List<MenuLookupDto>>($"api/menus/by-type/{selectedType}");
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task AddMenu()
+    {
+        var response = await Http.PostAsJsonAsync("api/menus", Menu);
+
+        if (response.IsSuccessStatusCode)
+        {
+            NavigationManager.NavigateTo("/menus");
+        }
+    }
+
+    // DTO sent to API
+    public class MenuDto
+    {
+        public string MenuTitle { get; set; }
+        public string Link { get; set; }
+        public string Type { get; set; }
+        public int? ParentId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Order must be a positive number.")]
+        public int Order { get; set; }
+    }
+
+    // DTO to fill dropdown list
+    public class MenuLookupDto
+    {
+        public int Id { get; set; }
+        public string MenuTitle { get; set; }
+    }
+}

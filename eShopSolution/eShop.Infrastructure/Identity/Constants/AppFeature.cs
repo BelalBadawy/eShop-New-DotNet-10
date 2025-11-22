@@ -8,6 +8,7 @@
         public const string RoleClaims = nameof(RoleClaims);
 
         public const string Brands = nameof(Brands);
+        public const string Menus = nameof(Menus);
 
     }
 }

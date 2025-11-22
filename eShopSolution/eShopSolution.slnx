@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="BlazorApp/BlazorApp.csproj" />
   <Project Path="eShop.API/eShop.API.csproj" />
   <Project Path="eShop.Application/eShop.Application.csproj" />
   <Project Path="eShop.Domain/eShop.Domain.csproj" />

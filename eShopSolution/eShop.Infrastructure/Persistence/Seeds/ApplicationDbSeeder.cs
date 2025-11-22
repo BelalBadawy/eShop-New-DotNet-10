@@ -6,18 +6,23 @@ namespace eShop.Infrastructure.Persistence.DbInitializers
     {
         private readonly ApplicationDbContext _context;
         private readonly IdentityDbSeeder identityDbSeeder;
-        
-        public ApplicationDbSeeder(ApplicationDbContext context,  IdentityDbSeeder identityDbSeeder)
+        private readonly FeaturesDbSeeder featuresDbSeeder;
+
+        public ApplicationDbSeeder(ApplicationDbContext context,  IdentityDbSeeder identityDbSeeder,FeaturesDbSeeder featuresDbSeeder)
         {
             _context = context;
             this.identityDbSeeder = identityDbSeeder;
+            this.featuresDbSeeder = featuresDbSeeder;
         }
+
+      
 
         public async Task SeedApplicationDatabaseAsync()
         {
             await CheckAndApplyPendingMigrationAsync();
 
             await identityDbSeeder.SeedIdentityDatabaseAsync();
+            await featuresDbSeeder.SeedFeaturesDatabaseAsync();
         }
 
         private async Task CheckAndApplyPendingMigrationAsync()

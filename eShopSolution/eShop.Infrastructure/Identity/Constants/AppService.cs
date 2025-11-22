@@ -4,5 +4,6 @@
     {
         public const string Identity = nameof(Identity);
         public const string Product = nameof(Product);
+        public const string Website = nameof(Website);
     }
 }

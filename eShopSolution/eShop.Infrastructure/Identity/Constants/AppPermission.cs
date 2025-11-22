@@ -36,6 +36,12 @@ namespace eShop.Infrastructure.Identity.Constants
             new (AppService.Product, AppFeature.Brands, AppAction.Read, "Read Brands", IsBasic: true),
             new (AppService.Product, AppFeature.Brands, AppAction.Delete, "Delete Brands"),
 
+
+            new (AppService.Website, AppFeature.Menus, AppAction.Create,  "Create Menus"),
+            new (AppService.Website, AppFeature.Menus, AppAction.Read, "Read Menus"),
+            new (AppService.Website, AppFeature.Menus, AppAction.Update, "Update Menus"),
+            new (AppService.Website, AppFeature.Menus, AppAction.Delete, "Delete Menus"),
+
         ];
 
         public static IReadOnlyList<AppPermission> AllPermissions { get; } =

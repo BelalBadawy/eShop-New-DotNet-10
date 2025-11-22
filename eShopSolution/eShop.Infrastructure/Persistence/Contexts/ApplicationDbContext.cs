@@ -29,12 +29,12 @@ namespace eShop.Infrastructure.Persistence.Contexts
             _currentUserService = currentUserService;
         }
 
-        //public DbSet<Brand> Brands => Set<Brand>();
+        public DbSet<Menu> Menus => Set<Menu>();
 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-
+          
             // optionsBuilder.UseLoggerFactory(_loggerFactory);
         }
 
