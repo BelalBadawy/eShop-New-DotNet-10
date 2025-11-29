@@ -1,4 +1,5 @@
 ﻿using BlazorApp.Interfaces;
+using Blazored.LocalStorage;
 
 namespace BlazorApp.Providers
 {

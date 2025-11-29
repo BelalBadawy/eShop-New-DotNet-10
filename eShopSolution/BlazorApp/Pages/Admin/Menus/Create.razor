@@ -1,118 +1,125 @@
 ﻿@page "/admin/menus/create"
-@using System.ComponentModel.DataAnnotations
-@inject HttpClient Http
+@using BlazorApp.Interfaces
+@using BlazorApp.Models.Menus
+@inject IApiClient ApiClient
 @inject NavigationManager NavigationManager
 
 <h3>Create Menu</h3>
 <hr />
 
-<EditForm Model="Menu" OnValidSubmit="AddMenu">
+<EditForm Model="@Menu" OnValidSubmit="HandleValidSubmit">
+    <!-- *** KEY CHANGE: Use DataAnnotationsValidator *** -->
     <DataAnnotationsValidator />
+
     <ValidationSummary />
 
     <!-- Title -->
     <div class="mb-3">
         <label class="form-label">Menu Title:</label>
         <InputText class="form-control" @bind-Value="Menu.MenuTitle" />
-        <ValidationMessage For="() => Menu.MenuTitle" />
+        <ValidationMessage For="@(() => Menu.MenuTitle)" />
     </div>
 
     <!-- Link -->
     <div class="mb-3">
         <label class="form-label">Link:</label>
         <InputText class="form-control" @bind-Value="Menu.Link" />
-        <ValidationMessage For="() => Menu.Link" />
+        <ValidationMessage For="@(() => Menu.Link)" />
     </div>
 
     <!-- Type -->
     <div class="mb-3">
         <label class="form-label">Type:</label>
-
-        <InputSelect class="form-control" @bind-Value="Menu.Type"
-                     @onchange="OnTypeChanged">
+        <InputSelect class="form-control" @bind-Value="Menu.Type" @bind-Value:after="OnTypeChanged">
             <option value="">-- Select Type --</option>
             <option value="Top">Top</option>
             <option value="Bottom">Bottom</option>
         </InputSelect>
-
-        <ValidationMessage For="() => Menu.Type" />
+        <ValidationMessage For="@(() => Menu.Type)" />
     </div>
 
     <!-- ParentId -->
     <div class="mb-3">
         <label class="form-label">Parent Menu:</label>
-
-        <InputSelect class="form-control" @bind-Value="Menu.ParentId">
+        <InputSelect class="form-control" @bind-Value="Menu.ParentId" disabled="@isParentMenuDisabled">
             <option value="">-- No Parent --</option>
-            @foreach (var p in ParentMenus)
+            @if (ParentMenus != null)
             {
-                <option value="@p.Id">@p.MenuTitle</option>
+                @foreach (var p in ParentMenus)
+                {
+                    <option value="@p.Id.ToString()">@p.Title</option>
+                }
             }
         </InputSelect>
-
-        <ValidationMessage For="() => Menu.ParentId" />
+        <ValidationMessage For="@(() => Menu.ParentId)" />
     </div>
 
     <!-- Order -->
     <div class="mb-3">
         <label class="form-label">Order:</label>
         <InputNumber class="form-control" @bind-Value="Menu.Order" />
-        <ValidationMessage For="() => Menu.Order" />
+        <ValidationMessage For="@(() => Menu.Order)" />
     </div>
 
     <button type="submit" class="btn btn-primary">Create</button>
 </EditForm>
 
 @code {
-    private MenuDto Menu { get; set; } = new() { Type = "Top" };
+    // *** BEST PRACTICE: Initialize the model to prevent NullReferenceException ***
+    private MenuDto Menu { get; set; } = new();
+    private List<MenuLookupModel> ParentMenus = new();
+    private bool isParentMenuDisabled = true;
 
-    private List<MenuLookupDto> ParentMenus = new();
-
-    private async Task OnTypeChanged(ChangeEventArgs e)
+    protected override async Task OnInitializedAsync()
     {
-        string selectedType = e.Value?.ToString() ?? "";
+        // No initial load needed, wait for user to select a type.
+    }
 
-        Menu.Type = selectedType;
-
-        // clear old items
-        ParentMenus.Clear();
+    private async Task OnTypeChanged()
+    {
         Menu.ParentId = null;
+        ParentMenus.Clear();
+        isParentMenuDisabled = string.IsNullOrWhiteSpace(Menu.Type);
 
-        if (!string.IsNullOrWhiteSpace(selectedType))
+        if (!isParentMenuDisabled)
         {
-            // load filtered list from API
-            ParentMenus = await Http.GetFromJsonAsync<List<MenuLookupDto>>($"api/menus/by-type/{selectedType}");
-        }
-
-        StateHasChanged();
-    }
-
-    private async Task AddMenu()
-    {
-        var response = await Http.PostAsJsonAsync("api/menus", Menu);
-
-        if (response.IsSuccessStatusCode)
-        {
-            NavigationManager.NavigateTo("/menus");
+            await LoadParentMenus(Menu.Type);
         }
     }
 
-    // DTO sent to API
-    public class MenuDto
+    private async Task LoadParentMenus(string type)
     {
-        public string MenuTitle { get; set; }
-        public string Link { get; set; }
-        public string Type { get; set; }
-        public int? ParentId { get; set; }
+        try
+        {
+            var response = await ApiClient.GetAsync<List<MenuLookupModel>>($"v1/menus/for-list?type={type}");
 
-        [Range(1, int.MaxValue, ErrorMessage = "Order must be a positive number.")]
-        public int Order { get; set; }
+            if (response.IsSuccessful && response.Data != null)
+            {
+                ParentMenus = response.Data;
+            }
+            else
+            {
+                Console.WriteLine($"Error loading parent menus: {response.Messages}");
+                ParentMenus = new List<MenuLookupModel>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception loading parent menus: {ex.Message}");
+            ParentMenus = new List<MenuLookupModel>();
+        }
     }
 
-    // DTO to fill dropdown list
-    public class MenuLookupDto
+    private async Task HandleValidSubmit()
     {
-        public int Id { get; set; }
-        public string MenuTitle { get; set; }
+        Console.WriteLine("Form is valid. Submitting...");
+        Console.WriteLine($"Title: {Menu.MenuTitle}, Link: {Menu.Link}, Type: {Menu.Type}");
+
+        // --- Your API call to create the menu would go here ---
+        // var createResponse = await ApiClient.PostAsync<MenuDto>("menus", Menu);
+        // if (createResponse.IsSuccessful)
+        // {
+        //     NavigationManager.NavigateTo("/admin/menus");
+        // }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using BlazorApp.Interfaces;
 using BlazorApp.Models;
+using System.Buffers.Text;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -10,78 +11,106 @@ namespace BlazorApp.Services
     {
         private readonly HttpClient _http;
         private readonly ITokenProvider _tokenProvider;
-
+        private readonly IConfiguration configuration;
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
-        public ApiClient(HttpClient http, ITokenProvider tokenProvider)
+        // The constructor remains the same. The DI container, thanks to the
+        // setup in Program.cs, will inject a pre-configured HttpClient.
+        public ApiClient(HttpClient http, ITokenProvider tokenProvider,IConfiguration configuration)
         {
             _http = http;
             _tokenProvider = tokenProvider;
+            this.configuration = configuration;
         }
 
-        private async Task AddAuthorizationHeaderAsync(bool authorized)
-        {
-            _http.DefaultRequestHeaders.Authorization = null;
 
-            if (authorized)
+        private string GetBaseUrlIfNotExist(string url)
+        {
+            // 1. Handle null or empty input URL gracefully.
+            if (string.IsNullOrEmpty(url))
             {
-                var token = await _tokenProvider.GetToken();
-                if (!string.IsNullOrWhiteSpace(token))
-                {
-                    _http.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", token);
-                }
+                return url;
             }
+
+            // 2. Check if the provided URL is already absolute.
+            // Uri.IsWellFormedUriString is a robust way to check for a scheme (http, https, ftp, etc.).
+            if (Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                return url;
+            }
+            
+
+            // 3. Use the Uri constructor to safely combine the base and relative paths.
+            // This correctly handles all combinations of trailing/leading slashes.
+            var baseUri = new Uri(configuration["BaseAddress"]);
+            var absoluteUri = new Uri(baseUri, url);
+
+            return absoluteUri.ToString();
         }
 
         public async Task<ApiResponse<T>> GetAsync<T>(string url, bool authorized = true)
         {
-            await AddAuthorizationHeaderAsync(authorized);
+            using var request = new HttpRequestMessage(HttpMethod.Get, GetBaseUrlIfNotExist(url));
+            await AddAuthorizationHeaderAsync(request, authorized);
 
-            var response = await _http.GetAsync(url);
-
+            var response = await _http.SendAsync(request);
             return await DeserializeApiResponse<T>(response);
         }
 
         public async Task<ApiResponse<T>> PostAsync<T>(string url, object body, bool authorized = true)
         {
-            await AddAuthorizationHeaderAsync(authorized);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            await AddAuthorizationHeaderAsync(request, authorized);
 
             var json = JsonSerializer.Serialize(body);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _http.PostAsync(url, content);
-
+            var response = await _http.SendAsync(request);
             return await DeserializeApiResponse<T>(response);
         }
 
         public async Task<ApiResponse<T>> PutAsync<T>(string url, object body, bool authorized = true)
         {
-            await AddAuthorizationHeaderAsync(authorized);
+            using var request = new HttpRequestMessage(HttpMethod.Put, url);
+            await AddAuthorizationHeaderAsync(request, authorized);
 
             var json = JsonSerializer.Serialize(body);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _http.PutAsync(url, content);
-
+            var response = await _http.SendAsync(request);
             return await DeserializeApiResponse<T>(response);
         }
 
         public async Task<ApiResponse<T>> DeleteAsync<T>(string url, bool authorized = true)
         {
-            await AddAuthorizationHeaderAsync(authorized);
+            using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+            await AddAuthorizationHeaderAsync(request, authorized);
 
-            var response = await _http.DeleteAsync(url);
-
+            var response = await _http.SendAsync(request);
             return await DeserializeApiResponse<T>(response);
         }
 
+        // *** KEY CHANGE: Add header to the request message, NOT the client's default headers ***
+        private async Task AddAuthorizationHeaderAsync(HttpRequestMessage request, bool authorized)
+        {
+            if (authorized)
+            {
+                var token = await _tokenProvider.GetToken();
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.Authorization =
+                        new AuthenticationHeaderValue("Bearer", token);
+                }
+            }
+        }
 
+        // This method remains the same
         private async Task<ApiResponse<T>> DeserializeApiResponse<T>(HttpResponseMessage response)
         {
+            // ... (no changes to this method) ...
             try
             {
                 var json = await response.Content.ReadAsStringAsync();
